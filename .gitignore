@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.log
+.env
+.env.*
+!.env.example
+p2l-config.js
+!examples/p2l-config.example.js

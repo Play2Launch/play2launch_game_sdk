@@ -1,0 +1,11 @@
+import { readFile, mkdir, writeFile, copyFile } from 'node:fs/promises';
+const root = new URL('../', import.meta.url);
+const source = await readFile(new URL('src/sdk.js', root), 'utf8');
+const exportsLine = 'export { VERSION, PROTOCOL, createGameSDK, installLegacyBridge };';
+if (!source.includes(exportsLine)) throw Error('Build export marker missing');
+await mkdir(new URL('dist/', root), { recursive: true });
+await writeFile(new URL('dist/p2l-sdk.js', root), `/* P2L SDK: no credentials or trusted scoring in this bundle. */\n(() => {\n${source.replace(exportsLine, '')}\nglobalThis.P2LGameSDK = { VERSION, PROTOCOL, createGameSDK, installLegacyBridge };\n})();\n`);
+await writeFile(new URL('dist/p2l-bridge.js', root), `/* Legacy communication-check auto-loader. Do not load alongside a manually created SDK. */\n(() => {\n${source.replace(exportsLine, '')}\ninstallLegacyBridge();\n})();\n`);
+await copyFile(new URL('src/sdk.js', root), new URL('dist/p2l-sdk.mjs', root));
+await copyFile(new URL('src/index.d.ts', root), new URL('dist/p2l-sdk.d.ts', root));
+console.log('Built standalone script, ESM, declarations and legacy bridge.');
