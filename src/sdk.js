@@ -1,5 +1,5 @@
 // Client-side signatures check communication only. They are NOT score credentials.
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 const PROTOCOL = 'p2l-game-v1';
 const CHECK_PROTOCOL = 'p2l-communication-v1';
 const active = new WeakMap();
@@ -31,7 +31,7 @@ function report(value, final) {
     if (!final || !Array.isArray(value.inputs) || value.inputs.length > 12000) throw Error('Invalid input log');
     let last = -1;
     result.inputs = value.inputs.map(e => {
-      if (!object(e) || !integer(e.tick, 10000000) || e.tick <= last || typeof e.held !== 'boolean') throw Error('Invalid input event');
+      if (!object(e) || !integer(e.tick, 10000000) || e.tick < last || typeof e.held !== 'boolean') throw Error('Invalid input event');
       last = e.tick; return { tick: e.tick, held: e.held };
     });
   }

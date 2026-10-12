@@ -1,6 +1,6 @@
 {
   "name": "@play2launch/game-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "private": true,
   "description": "Framework-independent P2L game bridge and communication checks",

@@ -123,3 +123,10 @@ test('destroy during signing suppresses late replies',async()=>{
   r.fire({type:'p2l:challenge',protocol:'p2l-communication-v1',game_id:'paper-run',key_id:'gk',nonce:'c'.repeat(64),expires_at:Date.now()+20000});
   await Promise.resolve();sdk.destroy();done(new Uint8Array(64));await Promise.resolve();await Promise.resolve();assert.equal(r.sent.length,0);
 });
+
+test('preserves ordered press/release edges in the same tick',()=>{
+ const r=platform();r.init();r.sdk.start();
+ const inputs=[{tick:0,held:true},{tick:0,held:false},{tick:1,held:true}];
+ r.sdk.finish({...stats,inputs});
+ assert.deepEqual(r.sent.at(-1).d.report.inputs,inputs);r.sdk.destroy();
+});
