@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>P2L arcade integration fixture</title>
+<body><h1>Arcade integration fixture</h1><p>Use a separate game origin and set the trusted P2L origin below before publishing this fixture.</p>
+<button id="ready">Initialize</button><button id="save">Save</button><button id="report">Report score 10</button><button id="buy">Buy configured product</button><pre id="output"></pre>
+<script type="module">
+import {createArcadeSDK} from '../src/sdk.js';
+const sdk=createArcadeSDK({parentOrigin:'http://localhost:5173'});
+const output=document.querySelector('#output');
+const run=fn=>async()=>{try{output.textContent=JSON.stringify(await fn(),null,2)}catch(e){output.textContent=e.message}};
+document.querySelector('#ready').onclick=run(async()=>{await sdk.loading(1);const user=await sdk.getUserProfile();await sdk.getData('main');await sdk.ready();return user});
+document.querySelector('#save').onclick=run(async()=>{const old=await sdk.getData('main');return sdk.setData('main',JSON.stringify({level:2}),old.version)});
+document.querySelector('#report').onclick=run(()=>sdk.report('score',10));
+document.querySelector('#buy').onclick=run(async()=>{const products=await sdk.getProducts();if(!products.length)throw Error('Configure a server product first');return sdk.purchase(products[0].id)});
+</script></body></html>

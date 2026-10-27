@@ -2,7 +2,7 @@
 
 零运行时依赖的浏览器游戏 SDK。一个游戏 build 同时支持独立体验和 P2L 平台接入；适用于原生 H5、Canvas、React、Vue。
 
-**当前是 SDK/协议层，不是计分服务器。** 随机挑战只检查 SDK 通信，不证明游戏身份、分数可信或防作弊；正式成绩必须由 P2L 后端核验局次并结算。PAPERHOOD 和管理端尚未切换使用本仓库。
+**当前是 SDK/协议层，不是计分服务器。** 随机挑战只检查 SDK 通信，不证明游戏身份、分数可信或防作弊；正式成绩必须由 P2L 后端核验局次并结算。实时玩法以可选能力扩展，现有 PAPERHOOD 的种子和回放流程保持兼容。
 
 ## 开发与下载
 
@@ -99,3 +99,8 @@ Call `reportError(code,message)` for asset/loading/game failures; do not include
 本仓库没有登录 token、真实局次数据库、Go 回放或可信验分。服务端需对每一局幂等结算（不能只按提交 ID）、限制并发和频率、保存种子/规则/队伍快照并检查计分合理性。后续规则以服务端配置为准，不能由客户端选择跳过验证。
 
 生产环境建议游戏独立域名，用 CSP `frame-ancestors` 限定平台/管理端，避免 `X-Frame-Options` 阻止合法 iframe。本地 host 示例使用同源 iframe 和 `allow-same-origin` 仅便于开发，不能作为隔离不可信游戏的生产方案。部署配置是静态可信配置，禁止直接把任意 URL 参数或 referrer 作为可信来源。
+
+
+## 多榜单与实时玩法（0.2.0）
+
+新增可选 `metrics-v1` / `realtime-v1` 能力，详见 [协议扩展](docs/protocol.md#optional-extensions-sdk-020)。实时游戏通过 `realtime_init`、`snapshot`、`action` 与平台交互；随机结果和最终成绩由服务器生成，游戏不上传可信最终分数。独立游戏画面和练习模式由游戏项目实现。

@@ -130,3 +130,50 @@ test('preserves ordered press/release edges in the same tick',()=>{
  r.sdk.finish({...stats,inputs});
  assert.deepEqual(r.sent.at(-1).d.report.inputs,inputs);r.sdk.destroy();
 });
+
+function realtime() {
+ const r=runtime(),sdk=createGameSDK({...r.options,capabilities:['metrics-v1','realtime-v1']},r.win);sdk.ready();
+ const envelope={...r.sent[0].d};const session={id:'gsrt1',expires_at:Date.now()+103000,duration_ms:103000,allow_pause:false,realtime:{version:'realtime-v1',tick_ms:1000,starts_at:Date.now()+3000}};
+ const init=()=>r.fire({...envelope,type:'p2l:init',session});return {...r,sdk,envelope,session,init};
+}
+test('realtime is negotiated without a seed, locks inputs and never uploads scores',()=>{
+ const r=realtime();let initialized;r.sdk.on('realtime_init',v=>initialized=v);r.init();assert.equal(initialized.id,'gsrt1');assert.equal(r.sdk.session,null);assert.equal(r.sdk.realtimeSession.realtime.tick_ms,1000);
+ r.sdk.start();const id=r.sdk.action(1,'long');assert.equal(r.sdk.action(1,'long'),id);assert.throws(()=>r.sdk.action(1,'short'));assert.throws(()=>r.sdk.pause());assert.throws(()=>r.sdk.finish(stats));assert.throws(()=>r.sdk.progress(stats));
+ r.sdk.sync();assert.equal(r.sent.at(-1).d.type,'p2l:sync');r.sdk.destroy();
+});
+test('realtime snapshots are monotonic, session-bound and finish only once',()=>{
+ const r=realtime();r.init();r.sdk.start();let results=[];r.sdk.on('result',v=>results.push(v));
+ const snapshot={revision:2,server_time:Date.now(),round:1,deadline_at:Date.now()+1000,status:'playing',rounds:[{round:1,direction:'up',outcome:'win',score:10,combo:1}],metrics:{total_score:10,winning_combo:1,losing_combo:0}};
+ const message={...r.envelope,session_id:r.session.id,type:'p2l:snapshot',snapshot};r.fire(message);assert.throws(()=>r.sdk.action(1,'long'));
+ r.fire({...message,session_id:'other',snapshot:{...snapshot,status:'finished'}});assert.equal(results.length,0);
+ r.fire({...message,snapshot:{...snapshot,revision:1,status:'finished'}});assert.equal(results.length,0);
+ r.fire({...message,snapshot:{...snapshot,revision:3,status:'finished'}});r.fire(message);assert.equal(results.length,1);assert.equal(results[0].metrics.total_score,10);r.sdk.destroy();
+});
+test('verified result metrics are optional for v1 and reject malformed values',()=>{
+ const r=platform();r.init();r.sdk.start();r.sdk.finish(stats);let result;r.sdk.on('result',v=>result=v);
+ const d={...r.sent.at(-1).d,type:'p2l:result',status:'accepted',score:90};r.fire({...d,metrics:{score:Infinity}});assert.equal(result,undefined);
+ r.fire({...d,metrics:{score:90}});assert.deepEqual(result.metrics,{score:90});r.sdk.destroy();
+});
+test('legacy host cannot silently initialize a realtime-capable run with leaked seed',()=>{
+ const r=realtime();r.session.seed=12;r.init();assert.equal(r.sdk.state,'waiting');r.sdk.destroy();
+ const legacy=platform();delete legacy.session.seed;legacy.session.realtime={version:'realtime-v1',tick_ms:1000,starts_at:Date.now()};legacy.init();assert.equal(legacy.sdk.state,'waiting');legacy.sdk.destroy();
+});
+
+
+test('restored pending input stays locked and acknowledgements are bound to its id',()=>{
+ const r=realtime();r.init();r.sdk.start();let snapshots=[],acks=[];
+ r.sdk.on('snapshot',v=>snapshots.push(v));r.sdk.on('action',v=>acks.push(v));
+ const pending={round:1,action_id:'f'.repeat(32),direction:'short'};
+ const snapshot={revision:1,server_time:Date.now(),round:0,deadline_at:Date.now()+1000,status:'playing',rounds:[],pending,metrics:{total_score:0,winning_combo:0,losing_combo:0}};
+ r.fire({...r.envelope,session_id:r.session.id,type:'p2l:snapshot',snapshot});
+ assert.deepEqual(snapshots[0].pending,pending);assert.throws(()=>r.sdk.action(1,'long'));assert.equal(r.sdk.action(1,'short'),pending.action_id);
+ r.fire({...r.envelope,session_id:r.session.id,type:'p2l:action-ack',round:1,action_id:'0'.repeat(32),accepted:true});assert.equal(acks.length,0);
+ r.fire({...r.envelope,session_id:r.session.id,type:'p2l:action-ack',...pending,accepted:true});assert.equal(acks.length,1);r.sdk.destroy();
+});
+
+test('accepts server-defined cadence and forwards the resolved choice',()=>{
+ const r=realtime();r.session.realtime.tick_ms=2000;r.session.duration_ms=203000;r.init();assert.equal(r.sdk.realtimeSession.realtime.tick_ms,2000);r.sdk.start();let got;r.sdk.on('snapshot',v=>got=v);
+ const snapshot={revision:1,server_time:Date.now(),round:1,deadline_at:Date.now()+2000,status:'playing',rounds:[{round:1,direction:'down',choice:'long',outcome:'loss',score:10,combo:1}],metrics:{total_score:10,winning_combo:0,losing_combo:1}};
+ r.fire({...r.envelope,type:'p2l:snapshot',session_id:r.session.id,snapshot});assert.equal(got.rounds[0].choice,'long');r.sdk.destroy();
+ for(const interval of [999,1001,5001,NaN]){const bad=realtime();bad.session.realtime.tick_ms=interval;bad.init();assert.equal(bad.sdk.state,'waiting');bad.sdk.destroy();}
+});

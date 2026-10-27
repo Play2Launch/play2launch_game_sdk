@@ -1,11 +1,11 @@
 {
   "name": "@play2launch/game-sdk",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "private": true,
   "description": "Framework-independent P2L game bridge and communication checks",
   "exports": { ".": { "types": "./src/index.d.ts", "import": "./src/sdk.js" }, "./browser": "./dist/p2l-sdk.js", "./legacy": "./dist/p2l-bridge.js" },
-  "files": ["src/sdk.js", "src/index.d.ts", "dist", "README.md", "docs"],
+  "files": ["src/sdk.js", "src/index.d.ts", "dist", "bridges", "examples", "README.md", "docs"],
   "scripts": { "test": "node --test", "build": "node scripts/build.mjs", "dev": "node scripts/serve.mjs" },
   "engines": { "node": ">=22" }
 }
